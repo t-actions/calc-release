@@ -1,0 +1,52 @@
+name: Calculate Release Information
+author: Tanyi Chen
+description: Calculate some release information for further usage
+inputs:
+  tag:
+    description: release target to specific tag rather than branch, use github.ref if empty
+    required: false
+  default_branch:
+    description: default branch whose release name would be latest
+    required: false
+    default: master
+outputs:
+  tag:
+    description: target tag, would be either "latest", "release-<branch>" or tag itself
+    value: ${{ steps.param.outputs.tag }}
+  ref:
+    description: ref for corresponding tag
+    value: ${{ steps.param.outputs.ref }}
+  is_branch:
+    description: 1 if release for branch, 0 if release for tag
+    value: ${{ steps.param.outputs.is_branch }}
+runs:
+  using: composite
+  steps:
+    - id: param
+      run: |
+          set -x
+          if [[ -z "${{ inputs.tag }}" ]]; then
+            if [[ "${GITHUB_REF}" == "refs/heads/"* ]]; then
+              ref=${GITHUB_REF#refs/heads/}
+              if [[ "${ref}" == "${{ inputs.default_branch }}" ]]; then
+                tag="latest"
+              else
+                tag="release-${ref}"
+              fi
+              is_branch=1
+            else
+              ref=${GITHUB_REF#refs/tags/}
+              tag=${ref}
+              is_branch=''
+            fi
+          else
+            ref=${{ inputs.tag }}
+            tag=${ref}
+            is_branch=''
+          fi
+          echo "::set-output name=ref::$ref"
+          echo "::set-output name=tag::$tag"
+          echo "::set-output name=is_branch::${is_branch}"
+      shell: bash
+      env:
+        GITHUB_REF: ${{ github.ref }}
